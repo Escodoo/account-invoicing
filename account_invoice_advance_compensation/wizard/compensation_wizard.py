@@ -108,6 +108,7 @@ class AccountInvoiceAdvanceCompensationWizard(models.TransientModel):
         move = self._create_compensation_move()
         move.action_post()
         self._process_reconciliation(move)
+        self._create_compensation_history(move)
 
         return {
             "type": "ir.actions.act_window",
@@ -116,6 +117,22 @@ class AccountInvoiceAdvanceCompensationWizard(models.TransientModel):
             "view_mode": "form",
             "target": "current",
         }
+
+    def _create_compensation_history(self, move):
+        self.ensure_one()
+        self.env["account.invoice.advance.compensation.history"].create(
+            {
+                "move_id": self.move_id.id,
+                "invoice_line_id": self.invoice_line_id.id,
+                "advance_line_id": self.advance_line_id.id,
+                "compensation_move_id": move.id,
+                "journal_id": self.journal_id.id,
+                "amount": self.amount,
+                "currency_id": self.currency_id.id,
+                "date": self.date,
+                "company_id": self.move_id.company_id.id,
+            }
+        )
 
     def _get_available_advance_lines(self):
         move = self.move_id
@@ -138,6 +155,22 @@ class AccountInvoiceAdvanceCompensationWizard(models.TransientModel):
             else [("amount_residual", "<", 0)]
         )
         return self.env["account.move.line"].search(base_domain + sign_domain)
+
+    def _lock_compensation_lines(self):
+        """Serialize concurrent compensations over the same move lines.
+
+        Locks both lines for update (consistent order, to avoid deadlocks)
+        and discards any cached ``amount_residual`` so the balances read
+        right after this call reflect the state under the lock.
+        """
+        line_ids = tuple(sorted((self.invoice_line_id.id, self.advance_line_id.id)))
+        self.env.cr.execute(
+            "SELECT id FROM account_move_line WHERE id IN %s ORDER BY id FOR UPDATE",
+            (line_ids,),
+        )
+        (self.invoice_line_id + self.advance_line_id).invalidate_recordset(
+            ["amount_residual"]
+        )
 
     def _validate_compensation(self):
         if self.amount <= 0:
@@ -207,6 +240,7 @@ class AccountInvoiceAdvanceCompensationWizard(models.TransientModel):
 
         self.invoice_line_id._validate_invoice_line()
         self.advance_line_id._validate_advance_line()
+        self._lock_compensation_lines()
 
         invoice_residual = abs(self.invoice_line_id.amount_residual)
         advance_residual = abs(self.advance_line_id.amount_residual)

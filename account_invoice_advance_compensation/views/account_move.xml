@@ -13,6 +13,23 @@
                 <field name="advance_invoice" invisible="1" />
             </xpath>
 
+            <!-- Add advance compensation history smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    name="action_view_advance_compensation_history"
+                    type="object"
+                    class="oe_stat_button"
+                    icon="fa-exchange"
+                    invisible="advance_compensation_history_count == 0"
+                >
+                    <field
+                        name="advance_compensation_history_count"
+                        widget="statinfo"
+                        string="Advances"
+                    />
+                </button>
+            </xpath>
+
             <!-- Add compensation button -->
             <xpath expr="//button[@name='action_register_payment']" position="after">
                 <button

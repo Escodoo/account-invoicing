@@ -3,7 +3,7 @@
 
 {
     "name": "Account Invoice Advance Compensation",
-    "version": "18.0.1.0.1",
+    "version": "18.0.1.0.2",
     "category": "Accounting/Invoicing",
     "summary": "Compensate advance payments from invoices",
     "author": "Escodoo, Odoo Community Association (OCA)",
@@ -14,6 +14,7 @@
         "security/ir.model.access.csv",
         "views/account_journal.xml",
         "views/account_move.xml",
+        "views/account_invoice_advance_compensation_history_views.xml",
         "wizard/compensation_wizard.xml",
     ],
 }

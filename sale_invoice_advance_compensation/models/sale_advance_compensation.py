@@ -154,6 +154,10 @@ class SaleAdvanceCompensation(models.Model):
     def write(self, vals):
         res = super().write(vals)
         self._check_business_consistency()
+        if "amount" in vals:
+            self.filtered(
+                lambda compensation: compensation.state == "reserved"
+            )._validate_reservation()
         return res
 
     def _add_default_vals(self, vals):
@@ -242,9 +246,20 @@ class SaleAdvanceCompensation(models.Model):
             return 0.0
         return max(abs(self.advance_line_id.amount_residual), 0.0)
 
+    def _lock_advance_line(self):
+        self.ensure_one()
+        if not self.advance_line_id:
+            return
+        self.env.cr.execute(
+            "SELECT id FROM account_move_line WHERE id = %s FOR UPDATE",
+            (self.advance_line_id.id,),
+        )
+        self.advance_line_id.invalidate_recordset(["amount_residual"])
+
     def _validate_reservation(self):
         self._check_business_consistency()
         for compensation in self:
+            compensation._lock_advance_line()
             available = compensation._get_available_amount()
             amount_to_reserve = compensation.amount - compensation.applied_amount
             if compensation.advance_line_id and amount_to_reserve > available:

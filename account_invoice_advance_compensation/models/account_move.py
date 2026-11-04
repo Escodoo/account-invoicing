@@ -13,6 +13,30 @@ class AccountMove(models.Model):
         compute="_compute_advance_invoice",
         help="Indicates whether this invoice has eligible advance payments available",
     )
+    advance_compensation_history_ids = fields.One2many(
+        comodel_name="account.invoice.advance.compensation.history",
+        inverse_name="move_id",
+        string="Advance Compensation History",
+    )
+    advance_compensation_history_count = fields.Integer(
+        compute="_compute_advance_compensation_history_count",
+    )
+
+    def _compute_advance_compensation_history_count(self):
+        for move in self:
+            move.advance_compensation_history_count = len(
+                move.advance_compensation_history_ids
+            )
+
+    def action_view_advance_compensation_history(self):
+        self.ensure_one()
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "account_invoice_advance_compensation."
+            "account_invoice_advance_compensation_history_action"
+        )
+        action["domain"] = [("move_id", "=", self.id)]
+        action["context"] = {"default_move_id": self.id}
+        return action
 
     @api.depends(
         "partner_id",

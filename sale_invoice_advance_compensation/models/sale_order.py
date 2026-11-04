@@ -106,6 +106,15 @@ class SaleOrder(models.Model):
                         "payment term lines."
                     )
                 )
+            if order.advance_product_id.invoice_policy != "order":
+                raise UserError(
+                    _(
+                        "Advance Product '%(product)s' must use the 'Ordered "
+                        "Quantities' invoicing policy so the advance invoice "
+                        "doesn't depend on delivery."
+                    )
+                    % {"product": order.advance_product_id.display_name}
+                )
             order.advance_compensation_ids.action_reserve()
         return super().action_confirm()
 
